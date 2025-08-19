@@ -14,6 +14,12 @@ export async function GET(request: NextRequest) {
       // Get Supabase client
       const supabase = getSupabaseClient();
 
+      // Handle case where client might be mock/unavailable during build
+      if (!supabase || !supabase.auth?.exchangeCodeForSession) {
+        console.warn("Supabase client not available, skipping auth exchange");
+        return NextResponse.redirect(new URL(redirectTo, request.url));
+      }
+
       // Exchange the code for a session
       const { error } = await supabase.auth.exchangeCodeForSession(code);
 
