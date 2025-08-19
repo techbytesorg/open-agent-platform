@@ -17,12 +17,29 @@ export class SupabaseAuthProvider implements AuthProvider {
     this.supabase = getSupabaseClient();
     this.options = {
       shouldPersistSession: true,
-      redirectUrl:
-        typeof window !== "undefined"
-          ? `${window.location.origin}/api/auth/callback`
-          : undefined,
+      redirectUrl: this.getRedirectUrl(options.redirectUrl),
       ...options,
     };
+  }
+
+  // SSR-safe redirect URL construction
+  private getRedirectUrl(providedUrl?: string): string {
+    if (providedUrl) return providedUrl;
+    
+    // Client-side: use window.location.origin
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/api/auth/callback`;
+    }
+    
+    // SSR-safe fallback: derive from NEXT_PUBLIC_BASE_API_URL
+    const baseApiUrl = process.env.NEXT_PUBLIC_BASE_API_URL;
+    if (baseApiUrl) {
+      const baseUrl = baseApiUrl.replace('/api', '');
+      return `${baseUrl}/api/auth/callback`;
+    }
+    
+    // Final fallback for development
+    return 'http://localhost:3000/api/auth/callback';
   }
 
   // Helper to convert Supabase User to our User interface
