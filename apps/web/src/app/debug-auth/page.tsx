@@ -3,6 +3,9 @@
 import { AuthDebug } from "@/components/auth/debug";
 import { AuthProvider } from "@/providers/Auth";
 
+// Disable static generation for this page to prevent build-time auth errors
+export const dynamic = 'force-dynamic';
+
 export default function DebugAuthPage() {
   return (
     <AuthProvider>
