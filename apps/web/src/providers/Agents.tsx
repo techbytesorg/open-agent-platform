@@ -22,20 +22,16 @@ import { createClient } from "@/lib/client";
 import { useAuthContext } from "./Auth";
 import { toast } from "sonner";
 import { Assistant } from "@langchain/langgraph-sdk";
+import { getBaseApiUrl } from "@/lib/api-url";
 
 async function getOrCreateDefaultAssistants(
   deployment: Deployment,
   accessToken?: string,
 ): Promise<Assistant[]> {
-  const baseApiUrl = process.env.NEXT_PUBLIC_BASE_API_URL;
-  if (!baseApiUrl) {
-    throw new Error(
-      "Failed to get default assistants: Base API URL not configured. Please set NEXT_PUBLIC_BASE_API_URL",
-    );
-  }
+  const baseApiUrl = getBaseApiUrl();
 
   try {
-    const url = `${baseApiUrl}/langgraph/defaults?deploymentId=${deployment.id}`;
+    const url = `${baseApiUrl}/api/langgraph/defaults?deploymentId=${deployment.id}`;
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };

@@ -110,6 +110,18 @@ export function AuthProvider({
     updateUser: provider.updateUser.bind(provider),
   };
 
+  // Debug logging
+  useEffect(() => {
+    console.warn("[Auth Provider] Session state:", {
+      hasSession: !!session,
+      hasUser: !!user,
+      hasAccessToken: !!session?.accessToken,
+      isLoading,
+      isAuthenticated: !!session?.user,
+      accessTokenPreview: session?.accessToken?.substring(0, 30) + "...",
+    });
+  }, [session, user, isLoading]);
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

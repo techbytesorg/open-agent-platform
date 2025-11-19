@@ -26,6 +26,7 @@ import { useAuthContext } from "@/providers/Auth";
 import { getDeployments } from "@/lib/environment/deployments";
 import { useHasApiKeys } from "@/hooks/use-api-keys";
 import { checkApiKeysWarning } from "@/lib/agent-utils";
+import { getBaseApiUrl } from "@/lib/api-url";
 
 export type StateType = { messages: Message[]; ui?: UIMessage[] };
 
@@ -67,13 +68,8 @@ const StreamSession = ({
 
   let deploymentUrl = deployment.deploymentUrl;
   if (useProxyRoute) {
-    const baseApiUrl = process.env.NEXT_PUBLIC_BASE_API_URL;
-    if (!baseApiUrl) {
-      throw new Error(
-        "Failed to create client: Base API URL not configured. Please set NEXT_PUBLIC_BASE_API_URL",
-      );
-    }
-    deploymentUrl = `${baseApiUrl}/langgraph/proxy/${deploymentId}`;
+    const baseApiUrl = getBaseApiUrl();
+    deploymentUrl = `${baseApiUrl}/api/langgraph/proxy/${deploymentId}`;
   }
 
   const [threadId, setThreadId] = useQueryState("threadId");

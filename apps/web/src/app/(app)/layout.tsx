@@ -5,6 +5,7 @@ import React from "react";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { SidebarLayout } from "@/components/sidebar";
 import { AuthProvider } from "@/providers/Auth";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { DOCS_LINK } from "@/constants";
 
 const inter = Inter({
@@ -51,7 +52,9 @@ export default function RootLayout({
         )}
         <NuqsAdapter>
           <AuthProvider>
-            <SidebarLayout>{children}</SidebarLayout>
+            <AuthGuard>
+              <SidebarLayout>{children}</SidebarLayout>
+            </AuthGuard>
           </AuthProvider>
         </NuqsAdapter>
       </body>

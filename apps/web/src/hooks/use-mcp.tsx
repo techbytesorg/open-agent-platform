@@ -2,14 +2,12 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { Tool } from "@/types/tool";
 import { useState } from "react";
+import { getBaseApiUrl } from "@/lib/api-url";
 
 function getMCPUrlOrThrow() {
-  if (!process.env.NEXT_PUBLIC_BASE_API_URL) {
-    throw new Error("NEXT_PUBLIC_BASE_API_URL is not defined");
-  }
-
-  const url = new URL(process.env.NEXT_PUBLIC_BASE_API_URL);
-  url.pathname = `${url.pathname}${url.pathname.endsWith("/") ? "" : "/"}oap_mcp`;
+  const baseUrl = getBaseApiUrl();
+  const url = new URL(baseUrl);
+  url.pathname = `${url.pathname}${url.pathname.endsWith("/") ? "" : "/"}api/oap_mcp`;
   return url;
 }
 
@@ -20,9 +18,11 @@ function getMCPUrlOrThrow() {
 export default function useMCP({
   name,
   version,
+  accessToken,
 }: {
   name: string;
   version: string;
+  accessToken?: string;
 }) {
   const [tools, setTools] = useState<Tool[]>([]);
   const [cursor, setCursor] = useState("");
@@ -37,7 +37,39 @@ export default function useMCP({
    */
   const createAndConnectMCPClient = async () => {
     const url = getMCPUrlOrThrow();
-    const connectionClient = new StreamableHTTPClientTransport(new URL(url));
+    
+    console.warn("[useMCP] Creating MCP client:", {
+      hasAccessToken: !!accessToken,
+      accessTokenPreview: accessToken?.substring(0, 20) + "...",
+      url: url.toString(),
+    });
+    
+    // Prepare transport options with authentication header if available
+    const transportOptions: {
+      requestInit?: RequestInit;
+    } = {};
+    
+    if (accessToken) {
+      transportOptions.requestInit = {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        // Include credentials (cookies) for same-origin requests
+        credentials: "include",
+      };
+      console.warn("[useMCP] Adding Authorization header to requestInit");
+    } else {
+      console.warn("[useMCP] No access token, sending unauthenticated request");
+      // Still include credentials even without auth token (for cookie-based auth)
+      transportOptions.requestInit = {
+        credentials: "include",
+      };
+    }
+    
+    const connectionClient = new StreamableHTTPClientTransport(
+      new URL(url),
+      transportOptions
+    );
     const mcp = new Client({
       name,
       version,
