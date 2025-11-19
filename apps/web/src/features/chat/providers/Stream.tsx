@@ -87,7 +87,15 @@ const StreamSession = ({
       setThreadId(id);
     },
     defaultHeaders: {
-      ...(!useProxyRoute
+      ...(useProxyRoute && accessToken
+        ? {
+            // When using proxy route, still send Supabase token so backend can forward it to LangGraph
+            // This is needed for MCP tools OAuth token exchange
+            Authorization: `Bearer ${accessToken}`,
+            "x-supabase-access-token": accessToken,
+            "x-auth-scheme": "langsmith",
+          }
+        : !useProxyRoute && accessToken
         ? {
             Authorization: `Bearer ${accessToken}`,
             "x-supabase-access-token": accessToken,

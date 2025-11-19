@@ -14,6 +14,11 @@ export function createClient(deploymentId: string, accessToken?: string) {
       apiUrl: `${baseApiUrl}/api/langgraph/proxy/${deploymentId}`,
       defaultHeaders: {
         "x-auth-scheme": "langsmith",
+        // Still send Supabase token if available for MCP tools OAuth token exchange
+        ...(accessToken && {
+          Authorization: `Bearer ${accessToken}`,
+          "x-supabase-access-token": accessToken,
+        }),
       },
     });
     return client;

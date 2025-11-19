@@ -213,6 +213,97 @@ function NewThreadButton(props: { hasMessages: boolean }) {
   );
 }
 
+// Intercept all network requests to log when actual HTTP requests are made
+if (typeof window !== "undefined" && !(window as any).__perf_interceptor_setup) {
+  (window as any).__perf_interceptor_setup = true;
+  
+  // Intercept fetch
+  const originalFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const url = args[0];
+    if (typeof url === "string" && (url.includes("/api/langgraph/proxy") || url.includes("langgraph"))) {
+      const requestStartTime = performance.now();
+      console.log(`[PERF] HTTP fetch request started at ${requestStartTime}: ${url}`);
+      
+      try {
+        const response = await originalFetch.apply(this, args);
+        const requestEndTime = performance.now();
+        console.log(`[PERF] HTTP fetch request completed at ${requestEndTime}: ${url} (took ${requestEndTime - requestStartTime}ms)`);
+        return response;
+      } catch (error) {
+        const requestEndTime = performance.now();
+        console.error(`[PERF] HTTP fetch request failed at ${requestEndTime}: ${url} (took ${requestEndTime - requestStartTime}ms)`, error);
+        throw error;
+      }
+    }
+    return originalFetch.apply(this, args);
+  };
+  
+  // Intercept XMLHttpRequest (some libraries use this instead of fetch)
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  const originalXHRSend = XMLHttpRequest.prototype.send;
+  
+  XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...rest: any[]) {
+    if (typeof url === "string" && (url.includes("/api/langgraph/proxy") || url.includes("langgraph"))) {
+      const requestStartTime = performance.now();
+      (this as any).__perf_start_time = requestStartTime;
+      (this as any).__perf_url = url;
+      console.log(`[PERF] HTTP XHR request started at ${requestStartTime}: ${method} ${url}`);
+    }
+    return originalXHROpen.apply(this, [method, url, ...rest]);
+  };
+  
+  XMLHttpRequest.prototype.send = function(...args: any[]) {
+    if ((this as any).__perf_start_time) {
+      const originalOnLoad = this.onload;
+      const originalOnError = this.onerror;
+      const startTime = (this as any).__perf_start_time;
+      const url = (this as any).__perf_url;
+      
+      this.onload = function(event) {
+        const endTime = performance.now();
+        console.log(`[PERF] HTTP XHR request completed at ${endTime}: ${url} (took ${endTime - startTime}ms)`);
+        if (originalOnLoad) originalOnLoad.call(this, event);
+      };
+      
+      this.onerror = function(event) {
+        const endTime = performance.now();
+        console.error(`[PERF] HTTP XHR request failed at ${endTime}: ${url} (took ${endTime - startTime}ms)`);
+        if (originalOnError) originalOnError.call(this, event);
+      };
+    }
+    return originalXHRSend.apply(this, args);
+  };
+  
+  // Intercept EventSource (for Server-Sent Events / SSE)
+  const originalEventSource = window.EventSource;
+  window.EventSource = class extends originalEventSource {
+    constructor(url: string | URL, eventSourceInitDict?: EventSourceInit) {
+      const requestStartTime = performance.now();
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("/api/langgraph/proxy") || urlStr.includes("langgraph")) {
+        console.log(`[PERF] HTTP EventSource (SSE) started at ${requestStartTime}: ${urlStr}`);
+        
+        super(url, eventSourceInitDict);
+        
+        this.addEventListener("open", () => {
+          const endTime = performance.now();
+          console.log(`[PERF] HTTP EventSource (SSE) opened at ${endTime}: ${urlStr} (took ${endTime - requestStartTime}ms)`);
+        });
+        
+        this.addEventListener("error", () => {
+          const endTime = performance.now();
+          console.error(`[PERF] HTTP EventSource (SSE) error at ${endTime}: ${urlStr} (took ${endTime - requestStartTime}ms)`);
+        });
+      } else {
+        super(url, eventSourceInitDict);
+      }
+    }
+  } as typeof EventSource;
+  
+  console.log("[PERF] Network interceptors installed (fetch + XHR + EventSource)");
+}
+
 export function Thread() {
   const [agentId] = useQueryState("agentId");
   const [deploymentId] = useQueryState("deploymentId");
@@ -275,6 +366,9 @@ export function Thread() {
   }, [stream.error]);
 
   const handleSubmit = (e: FormEvent) => {
+    const submitStartTime = performance.now();
+    console.log("[PERF] handleSubmit called at", submitStartTime);
+
     e.preventDefault();
 
     const form = e.currentTarget as HTMLFormElement;
@@ -289,6 +383,9 @@ export function Thread() {
     )
       return;
 
+    const messageCreationStart = performance.now();
+    console.log("[PERF] Message creation started at", messageCreationStart, `(${messageCreationStart - submitStartTime}ms after submit)`);
+
     const newHumanMessage: Message = {
       id: uuidv4(),
       type: "human",
@@ -298,8 +395,22 @@ export function Thread() {
       ] as Message["content"],
     };
 
+    const toolMessagesStart = performance.now();
+    console.log("[PERF] Tool messages processing started at", toolMessagesStart, `(${toolMessagesStart - messageCreationStart}ms after message creation)`);
+
     const toolMessages = ensureToolCallsHaveResponses(stream.messages);
+    
+    const configStart = performance.now();
+    console.log("[PERF] Config retrieval started at", configStart, `(${configStart - toolMessagesStart}ms after tool messages)`);
+
     const { getAgentConfig } = useConfigStore.getState();
+    const agentConfig = getAgentConfig(agentId);
+
+    const configEnd = performance.now();
+    console.log("[PERF] Config retrieval completed at", configEnd, `(${configEnd - configStart}ms)`);
+
+    const submitCallStart = performance.now();
+    console.log("[PERF] stream.submit() called at", submitCallStart, `(${submitCallStart - configEnd}ms after config, ${submitCallStart - submitStartTime}ms total since submit)`);
 
     stream.submit(
       { messages: [...toolMessages, newHumanMessage] },
@@ -315,7 +426,7 @@ export function Thread() {
         }),
         config: {
           configurable: {
-            ...getAgentConfig(agentId),
+            ...agentConfig,
             apiKeys,
           },
         },
@@ -326,6 +437,9 @@ export function Thread() {
         streamResumable: true,
       },
     );
+
+    const submitCallEnd = performance.now();
+    console.log("[PERF] stream.submit() returned at", submitCallEnd, `(${submitCallEnd - submitCallStart}ms to return, ${submitCallEnd - submitStartTime}ms total since submit)`);
 
     form.reset();
     setContentBlocks([]);
