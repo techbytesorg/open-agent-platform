@@ -2009,6 +2009,7 @@ curl https://api.example.com/health
 
 ## Risk Mitigation
 
+- **2025-12-09 – Security:** Patched React RSC RCE (GHSA-fv66-9v8q-g76r / CVE-2025-55182) by upgrading `react`/`react-dom` to 19.1.2 in `apps/web` and refreshing the lockfile. Next.js still ships RSC runtime, so staying on a patched React 19 build is required until arc_static_frontend is fully retired.
 
 ### Risk 1: CORS issues with static frontend
 

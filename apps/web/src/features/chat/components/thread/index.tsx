@@ -223,12 +223,12 @@ if (typeof window !== "undefined" && !(window as any).__perf_interceptor_setup) 
     const url = args[0];
     if (typeof url === "string" && (url.includes("/api/langgraph/proxy") || url.includes("langgraph"))) {
       const requestStartTime = performance.now();
-      console.log(`[PERF] HTTP fetch request started at ${requestStartTime}: ${url}`);
+      console.warn(`[PERF] HTTP fetch request started at ${requestStartTime}: ${url}`);
       
       try {
         const response = await originalFetch.apply(this, args);
         const requestEndTime = performance.now();
-        console.log(`[PERF] HTTP fetch request completed at ${requestEndTime}: ${url} (took ${requestEndTime - requestStartTime}ms)`);
+        console.warn(`[PERF] HTTP fetch request completed at ${requestEndTime}: ${url} (took ${requestEndTime - requestStartTime}ms)`);
         return response;
       } catch (error) {
         const requestEndTime = performance.now();
@@ -248,9 +248,9 @@ if (typeof window !== "undefined" && !(window as any).__perf_interceptor_setup) 
       const requestStartTime = performance.now();
       (this as any).__perf_start_time = requestStartTime;
       (this as any).__perf_url = url;
-      console.log(`[PERF] HTTP XHR request started at ${requestStartTime}: ${method} ${url}`);
+      console.warn(`[PERF] HTTP XHR request started at ${requestStartTime}: ${method} ${url}`);
     }
-    return originalXHROpen.apply(this, [method, url, ...rest]);
+    return (originalXHROpen as any).call(this, method, url, ...rest);
   };
   
   XMLHttpRequest.prototype.send = function(...args: any[]) {
@@ -262,7 +262,7 @@ if (typeof window !== "undefined" && !(window as any).__perf_interceptor_setup) 
       
       this.onload = function(event) {
         const endTime = performance.now();
-        console.log(`[PERF] HTTP XHR request completed at ${endTime}: ${url} (took ${endTime - startTime}ms)`);
+        console.warn(`[PERF] HTTP XHR request completed at ${endTime}: ${url} (took ${endTime - startTime}ms)`);
         if (originalOnLoad) originalOnLoad.call(this, event);
       };
       
@@ -272,7 +272,7 @@ if (typeof window !== "undefined" && !(window as any).__perf_interceptor_setup) 
         if (originalOnError) originalOnError.call(this, event);
       };
     }
-    return originalXHRSend.apply(this, args);
+    return (originalXHRSend as any).apply(this, args as any);
   };
   
   // Intercept EventSource (for Server-Sent Events / SSE)
@@ -282,13 +282,13 @@ if (typeof window !== "undefined" && !(window as any).__perf_interceptor_setup) 
       const requestStartTime = performance.now();
       const urlStr = typeof url === "string" ? url : url.toString();
       if (urlStr.includes("/api/langgraph/proxy") || urlStr.includes("langgraph")) {
-        console.log(`[PERF] HTTP EventSource (SSE) started at ${requestStartTime}: ${urlStr}`);
+        console.warn(`[PERF] HTTP EventSource (SSE) started at ${requestStartTime}: ${urlStr}`);
         
         super(url, eventSourceInitDict);
         
         this.addEventListener("open", () => {
           const endTime = performance.now();
-          console.log(`[PERF] HTTP EventSource (SSE) opened at ${endTime}: ${urlStr} (took ${endTime - requestStartTime}ms)`);
+          console.warn(`[PERF] HTTP EventSource (SSE) opened at ${endTime}: ${urlStr} (took ${endTime - requestStartTime}ms)`);
         });
         
         this.addEventListener("error", () => {
@@ -301,7 +301,7 @@ if (typeof window !== "undefined" && !(window as any).__perf_interceptor_setup) 
     }
   } as typeof EventSource;
   
-  console.log("[PERF] Network interceptors installed (fetch + XHR + EventSource)");
+  console.warn("[PERF] Network interceptors installed (fetch + XHR + EventSource)");
 }
 
 export function Thread() {
@@ -367,7 +367,7 @@ export function Thread() {
 
   const handleSubmit = (e: FormEvent) => {
     const submitStartTime = performance.now();
-    console.log("[PERF] handleSubmit called at", submitStartTime);
+    console.warn("[PERF] handleSubmit called at", submitStartTime);
 
     e.preventDefault();
 
@@ -384,7 +384,7 @@ export function Thread() {
       return;
 
     const messageCreationStart = performance.now();
-    console.log("[PERF] Message creation started at", messageCreationStart, `(${messageCreationStart - submitStartTime}ms after submit)`);
+    console.warn("[PERF] Message creation started at", messageCreationStart, `(${messageCreationStart - submitStartTime}ms after submit)`);
 
     const newHumanMessage: Message = {
       id: uuidv4(),
@@ -396,21 +396,21 @@ export function Thread() {
     };
 
     const toolMessagesStart = performance.now();
-    console.log("[PERF] Tool messages processing started at", toolMessagesStart, `(${toolMessagesStart - messageCreationStart}ms after message creation)`);
+    console.warn("[PERF] Tool messages processing started at", toolMessagesStart, `(${toolMessagesStart - messageCreationStart}ms after message creation)`);
 
     const toolMessages = ensureToolCallsHaveResponses(stream.messages);
     
     const configStart = performance.now();
-    console.log("[PERF] Config retrieval started at", configStart, `(${configStart - toolMessagesStart}ms after tool messages)`);
+    console.warn("[PERF] Config retrieval started at", configStart, `(${configStart - toolMessagesStart}ms after tool messages)`);
 
     const { getAgentConfig } = useConfigStore.getState();
     const agentConfig = getAgentConfig(agentId);
 
     const configEnd = performance.now();
-    console.log("[PERF] Config retrieval completed at", configEnd, `(${configEnd - configStart}ms)`);
+    console.warn("[PERF] Config retrieval completed at", configEnd, `(${configEnd - configStart}ms)`);
 
     const submitCallStart = performance.now();
-    console.log("[PERF] stream.submit() called at", submitCallStart, `(${submitCallStart - configEnd}ms after config, ${submitCallStart - submitStartTime}ms total since submit)`);
+    console.warn("[PERF] stream.submit() called at", submitCallStart, `(${submitCallStart - configEnd}ms after config, ${submitCallStart - submitStartTime}ms total since submit)`);
 
     stream.submit(
       { messages: [...toolMessages, newHumanMessage] },
@@ -439,7 +439,7 @@ export function Thread() {
     );
 
     const submitCallEnd = performance.now();
-    console.log("[PERF] stream.submit() returned at", submitCallEnd, `(${submitCallEnd - submitCallStart}ms to return, ${submitCallEnd - submitStartTime}ms total since submit)`);
+    console.warn("[PERF] stream.submit() returned at", submitCallEnd, `(${submitCallEnd - submitCallStart}ms to return, ${submitCallEnd - submitStartTime}ms total since submit)`);
 
     form.reset();
     setContentBlocks([]);

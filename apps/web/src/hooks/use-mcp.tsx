@@ -43,7 +43,7 @@ export default function useMCP({
   useEffect(() => {
     // If access token changed and we have an existing client, disconnect it
     if (clientRef.current && clientAccessTokenRef.current !== accessToken) {
-      console.log("[useMCP] Access token changed, disconnecting existing client");
+      console.warn("[useMCP] Access token changed, disconnecting existing client");
       clientRef.current.close().catch(() => {});
       clientRef.current = null;
       connectingRef.current = null;
@@ -57,7 +57,7 @@ export default function useMCP({
   const createMCPClientInternal = async (): Promise<Client> => {
     const url = getMCPUrlOrThrow();
     
-    console.log("[useMCP] Creating NEW MCP client:", {
+    console.warn("[useMCP] Creating NEW MCP client:", {
       hasAccessToken: !!accessToken,
       accessTokenPreview: accessToken ? accessToken.substring(0, 20) + "..." : "none",
       url: url.toString(),
@@ -109,18 +109,18 @@ export default function useMCP({
   const getOrCreateMCPClient = useCallback(async (): Promise<Client> => {
     // Return existing client if available
     if (clientRef.current) {
-      console.log("[useMCP] Reusing existing MCP client");
+      console.warn("[useMCP] Reusing existing MCP client");
       return clientRef.current;
     }
     
     // If a connection is already in progress, wait for it
     if (connectingRef.current) {
-      console.log("[useMCP] Connection in progress, waiting...");
+      console.warn("[useMCP] Connection in progress, waiting...");
       return connectingRef.current;
     }
     
     // Create new client and store the promise to prevent concurrent connections
-    console.log("[useMCP] No existing client, creating new connection");
+    console.warn("[useMCP] No existing client, creating new connection");
     connectingRef.current = createMCPClientInternal();
     
     try {
@@ -138,7 +138,7 @@ export default function useMCP({
   const createAndConnectMCPClient = useCallback(async (): Promise<Client> => {
     // Disconnect existing client if any
     if (clientRef.current) {
-      console.log("[useMCP] Force creating new client, disconnecting existing");
+      console.warn("[useMCP] Force creating new client, disconnecting existing");
       await clientRef.current.close().catch(() => {});
       clientRef.current = null;
     }
@@ -195,7 +195,7 @@ export default function useMCP({
    */
   const disconnect = useCallback(async () => {
     if (clientRef.current) {
-      console.log("[useMCP] Disconnecting MCP client");
+      console.warn("[useMCP] Disconnecting MCP client");
       await clientRef.current.close().catch(() => {});
       clientRef.current = null;
       connectingRef.current = null;
